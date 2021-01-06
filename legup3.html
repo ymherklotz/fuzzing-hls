@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2021-01-06 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LegUp Crash</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Yann Herklotz">
+<link rel="stylesheet" href="/fuzzing-hls/css/org.css" type="text/css" media="screen" />
+</head>
+<body>
+<article id="content">
+<header>
+<h1 class="title">LegUp Crash</h1>
+</header><p>
+The following C code was found to crash LegUp 4.0 and 7.5.
+</p>
+
+<p>
+<code>./bug.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">a</span>[2][2][1] = {{{0},{1}},{{0},{0}}};
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span>() { a[0][1][0] = 1; }
+</pre>
+</div>
+
+<p>
+To reproduce the bug, it has to point to the main <code>Makefile</code> in the examples folder in LegUp (<code>LEGUP_EXAMPLES</code>).
+</p>
+
+<p>
+<code>./Makefile</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-makefile"><span style="font-weight: bold; font-style: italic;">NAME</span> := bug
+<span style="font-weight: bold; font-style: italic;">NO_INLINE</span> := 1
+<span style="font-weight: bold; font-style: italic;">LEGUP_EXAMPLES</span> := ..
+<span style="font-weight: bold;">include</span> $(<span style="font-weight: bold; font-style: italic;">LEGUP_EXAMPLES</span>)/Makefile.common
+</pre>
+</div>
+
+<p>
+Then the bug can be reproduced by running <code>make</code>, which returns the following assertion error.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">make &gt;/dev/null
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">llc: utils.cpp:453: unsigned int legup::getBitWidth(const llvm::Type*): Assertion <span style="font-weight: bold;">`size &gt; 0' failed.</span>
+<span style="font-weight: bold;">0  llc             0x0000564d07ac55b2 llvm::sys::PrintStackTrace(_IO_FILE*) + 34</span>
+<span style="font-weight: bold;">1  llc             0x0000564d07ac4da4</span>
+<span style="font-weight: bold;">2  libpthread.so.0 0x00007fef25e5b730</span>
+<span style="font-weight: bold;">3  libc.so.6       0x00007fef259127bb gsignal + 267</span>
+<span style="font-weight: bold;">4  libc.so.6       0x00007fef258fd535 abort + 289</span>
+<span style="font-weight: bold;">5  libc.so.6       0x00007fef258fd40f</span>
+<span style="font-weight: bold;">6  libc.so.6       0x00007fef2590b102</span>
+<span style="font-weight: bold;">7  llc             0x0000564d06b79571</span>
+<span style="font-weight: bold;">8  llc             0x0000564d06b723bf legup::RAM::initializeArray(llvm::Constant const*) + 3487</span>
+<span style="font-weight: bold;">9  llc             0x0000564d06b73268 legup::RAM::initialize() + 88</span>
+<span style="font-weight: bold;">10 llc             0x0000564d06b73491 legup::RAM::buildInitializer() + 65</span>
+<span style="font-weight: bold;">11 llc             0x0000564d06b7354d legup::RAM::generateMIFContent(llvm::raw_fd_ostream&amp;, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;) + 45</span>
+<span style="font-weight: bold;">12 llc             0x0000564d06c8bfd9 legup::VerilogWriter::printMIFFiles() + 1049</span>
+<span style="font-weight: bold;">13 llc             0x0000564d06c8c185 legup::VerilogWriter::printMemoryController() + 37</span>
+<span style="font-weight: bold;">14 llc             0x0000564d06c8c574 legup::VerilogWriter::print() + 484</span>
+<span style="font-weight: bold;">15 llc             0x0000564d06bfd877 legup::LegupPass::printVerilog(std::set&lt;llvm::Function const*, std::less&lt;llvm::Function const*&gt;, std::allocator&lt;llvm::Function const*&gt; &gt; const&amp;) + 1031</span>
+<span style="font-weight: bold;">16 llc             0x0000564d06bfe8c3 legup::LegupPass::doFinalization(llvm::Module&amp;) + 3091</span>
+<span style="font-weight: bold;">17 llc             0x0000564d079d718c llvm::legacy::PassManagerImpl::run(llvm::Module&amp;) + 972</span>
+<span style="font-weight: bold;">18 llc             0x0000564d06b37380</span>
+<span style="font-weight: bold;">19 llc             0x0000564d06b19a20 main + 368</span>
+<span style="font-weight: bold;">20 libc.so.6       0x00007fef258ff09b __libc_start_main + 235</span>
+<span style="font-weight: bold;">21 llc             0x0000564d06b319ca _start + 42</span>
+<span style="font-weight: bold;">Stack dump:</span>
+<span style="font-weight: bold;">0.      Program arguments: ../../llvm/Release+Asserts/bin/llc -legup-config=../legup.tcl -march=v loop.bc -o loop.v</span>
+<span style="font-weight: bold;">make: *** [../Makefile.common:132: all] Aborted</span>
+</pre>
+</div>
+</article>
+<footer id="postamble" class="status">
+<p class="author">Author: Yann Herklotz</p>
+<p class="date">Created: 2021-01-06</p>
+</footer>
+</body>
+</html>

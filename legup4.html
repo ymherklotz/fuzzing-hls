@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2021-01-06 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LegUp Miscompilation</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Yann Herklotz">
+<link rel="stylesheet" href="/fuzzing-hls/css/org.css" type="text/css" media="screen" />
+</head>
+<body>
+<article id="content">
+<header>
+<h1 class="title">LegUp Miscompilation</h1>
+</header><p>
+The following C code was found to produce the wrong result in LegUp 4.0 and 7.5.
+</p>
+
+<p>
+<code>./bug.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">volatile</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">a</span> = 0;
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">b</span> = 1;
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span>() {
+  <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">d</span> = 1;
+  <span style="font-weight: bold;">if</span> (d + a)
+    b || 1;
+  <span style="font-weight: bold;">else</span>
+    b = 0;
+  <span style="font-weight: bold;">return</span> b;
+}
+</pre>
+</div>
+
+<p>
+To reproduce the bug, it has to point to the main <code>Makefile</code> in the examples folder in LegUp (<code>LEGUP_EXAMPLES</code>).
+</p>
+
+<p>
+<code>./Makefile</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-makefile"><span style="font-weight: bold; font-style: italic;">NAME</span> := bug
+<span style="font-weight: bold; font-style: italic;">NO_OPT</span> := 1
+<span style="font-weight: bold; font-style: italic;">LEGUP_EXAMPLES</span> := ..
+<span style="font-weight: bold;">include</span> $(<span style="font-weight: bold; font-style: italic;">LEGUP_EXAMPLES</span>)/Makefile.common
+</pre>
+</div>
+
+<p>
+Then the bug can be reproduced by running <code>make</code>, which also runs <code>vsim</code> to simulate the produced Verilog.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">make default v | tail -n6
+</pre>
+</div>
+
+<pre class="example">
+# At t=              110000 clk=1 finish=1 return_val=         0
+# Cycles:                    3
+# ** Note: $finish    : loop.v(1015)
+#    Time: 110 ns  Iteration: 2  Instance: /main_tb
+# End time: 16:08:12 on Oct 02,2020, Elapsed time: 0:00:01
+# Errors: 0, Warnings: 8
+</pre>
+
+<p>
+This shows that LegUp returns 0, however, the actual result that should be returned is 1, which can be verified with GCC.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">gcc ./bug.c -o bug
+./bug
+<span style="font-weight: bold;">echo</span> $<span style="font-weight: bold; font-style: italic;">?</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">1
+</pre>
+</div>
+</article>
+<footer id="postamble" class="status">
+<p class="author">Author: Yann Herklotz</p>
+<p class="date">Created: 2021-01-06</p>
+</footer>
+</body>
+</html>

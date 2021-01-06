@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2021-01-06 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bambu shift and and bug</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Yann Herklotz">
+<link rel="stylesheet" href="/fuzzing-hls/css/org.css" type="text/css" media="screen" />
+</head>
+<body>
+<article id="content">
+<header>
+<h1 class="title">Bambu shift and and bug</h1>
+</header><p>
+The following C code should output <code>0x100</code> as <code>b</code> is just shifted to the right by 8.  However, in bambu it outputs 0.
+</p>
+
+<p>
+<code>./bug.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">static</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">b</span> = 0x10000;
+<span style="font-weight: bold;">static</span> <span style="font-weight: bold;">volatile</span> <span style="font-weight: bold; text-decoration: underline;">short</span> <span style="font-weight: bold; font-style: italic;">a</span> = 0;
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>() {
+  a++;
+  b = (b &gt;&gt; 8) &amp; 0x100;
+  <span style="font-weight: bold;">return</span> b;
+}
+</pre>
+</div>
+
+<p>
+We can then generate two different files to run the bug with <code>gcc</code> and <code>bambu</code> respectively.
+</p>
+
+<p>
+<code>./main_gcc.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">"./bug.c"</span>
+<span style="font-weight: bold;">#include</span> <span style="font-style: italic;">&lt;stdio.h&gt;</span>
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span> () {
+    <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">res</span> = result();
+    printf(<span style="font-style: italic;">"checksum = %08X\n"</span>, res);
+    <span style="font-weight: bold;">return</span> 0;
+}
+</pre>
+</div>
+
+<p>
+<code>./main_bambu.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">"./bug.c"</span>
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span> () { <span style="font-weight: bold;">return</span> result(); }
+</pre>
+</div>
+
+<p>
+For bambu we also need a test bench in verilog to execute the code:
+</p>
+
+<p>
+<code>./tb.v</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-verilog"><span style="font-weight: bold;">module</span> testbench;
+   <span style="font-weight: bold; text-decoration: underline;">reg</span> clock, reset, start_port;
+   <span style="font-weight: bold; text-decoration: underline;">wire</span> done_port;
+   <span style="font-weight: bold; text-decoration: underline;">wire</span> [31:0] return_port;
+
+   main <span style="font-weight: bold;">m</span>(.<span style="font-weight: bold;">clock</span>(clock), .<span style="font-weight: bold;">reset</span>(reset), .<span style="font-weight: bold;">start_port</span>(start_port), .<span style="font-weight: bold;">done_port</span>(done_port), .<span style="font-weight: bold;">return_port</span>(return_port));
+
+   <span style="font-weight: bold;">always</span><span style="font-weight: bold; text-decoration: underline;"> #10</span> clock = ~clock;
+
+   <span style="font-weight: bold;">initial</span> <span style="font-weight: bold; text-decoration: underline;">begin</span>
+      clock = 0;
+      reset = 0;
+      start_port = 0;
+      <span style="font-weight: bold; text-decoration: underline;">@</span>(<span style="font-weight: bold;">posedge</span> clock) reset = 0;
+      <span style="font-weight: bold; text-decoration: underline;">@</span>(<span style="font-weight: bold;">posedge</span> clock) reset = 1; start_port = 1;
+      <span style="font-weight: bold; text-decoration: underline;">@</span>(<span style="font-weight: bold;">posedge</span> clock) start_port = 0;
+   <span style="font-weight: bold; text-decoration: underline;">end</span>
+
+   <span style="font-weight: bold;">always</span> <span style="font-weight: bold; text-decoration: underline;">@</span>(<span style="font-weight: bold;">posedge</span> clock)
+     <span style="font-weight: bold;">if</span> (done_port) <span style="font-weight: bold; text-decoration: underline;">begin</span>
+        <span style="font-weight: bold;">$display</span>(<span style="font-style: italic;">"checksum = %h"</span>, return_port);
+        <span style="font-weight: bold;">$finish</span>;
+     <span style="font-weight: bold; text-decoration: underline;">end</span>
+
+<span style="font-weight: bold;">endmodule</span>
+</pre>
+</div>
+
+<p>
+Finally, to reproduce the bug, one can run the following commands.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">gcc main_gcc.c -o main_gcc
+./main_gcc | tee out.gold.txt
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">checksum = 00000100
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">bambu main_bambu.c &gt;bambu.log 2&gt;&amp;1
+iverilog top.v tb.v -o main_bambu
+./main_bambu | tee out.bambu.txt
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">checksum = 00000000
+</pre>
+</div>
+</article>
+<footer id="postamble" class="status">
+<p class="author">Author: Yann Herklotz</p>
+<p class="date">Created: 2021-01-06</p>
+</footer>
+</body>
+</html>

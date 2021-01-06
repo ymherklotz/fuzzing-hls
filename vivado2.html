@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2021-01-06 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vivado Shift Bug</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Yann Herklotz">
+<link rel="stylesheet" href="/fuzzing-hls/css/org.css" type="text/css" media="screen" />
+</head>
+<body>
+<article id="content">
+<header>
+<h1 class="title">Vivado Shift Bug</h1>
+</header><p>
+The following bug produces an error in Vivado HLS 2018.3, 2019.1 and 2019.2.
+</p>
+
+<p>
+To create the project layout, we can first create the <code>./bug.c</code> file which produces the bug.
+</p>
+
+<p>
+<code>./bug.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">volatile</span> <span style="font-weight: bold; text-decoration: underline;">unsigned</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">g</span> = 0;
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">a</span>[256] = {0};
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">c</span> = 0;
+
+<span style="font-weight: bold; text-decoration: underline;">void</span> <span style="font-weight: bold;">d</span>(<span style="font-weight: bold; text-decoration: underline;">char</span> <span style="font-weight: bold; font-style: italic;">b</span>) {
+  c = (c &amp; 4095) ^ a[(c ^ b) &amp; 15];
+}
+
+<span style="font-weight: bold; text-decoration: underline;">void</span> <span style="font-weight: bold;">e</span>(<span style="font-weight: bold; text-decoration: underline;">long</span> <span style="font-weight: bold; font-style: italic;">f</span>) {
+  d(f); d(f &gt;&gt; 8); d(f &gt;&gt; 16); d(f &gt;&gt; 24);
+  d(f &gt;&gt; 32); d(f &gt;&gt; 40); d(f &gt;&gt; 48);
+}
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>() {
+  <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">i</span> = 0; i &lt; 56; i++)
+    a[i] = i;
+  e(g);
+  e(-2L);
+  <span style="font-weight: bold;">return</span> c;
+}
+</pre>
+</div>
+
+<p>
+We then have to generate a main function to provide the golden output.  We first write the following driver into <code>./bug_driver.c</code> which contains the main function that generates the checksum.
+</p>
+
+<p>
+<code>./bug_driver.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">"stdio.h"</span>
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>();
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span>() { printf(<span style="font-style: italic;">"checksum = %X\n"</span>, result()); }
+</pre>
+</div>
+
+<p>
+Then generate the golden output using GCC by compiling the driver with the initial bug and check the golden output.  This golden output is then written to <code>out.gold.txt</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">gcc bug_driver.c bug.c -o bug_gcc
+./bug_gcc | tee out.gold.txt
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">checksum = F
+</pre>
+</div>
+
+<p>
+We then also need to provide a test bench for Vivado that will detect a mismatch between the Verilog simulation and C output.  This loads the file <code>out.gold.txt</code> and checks that the output is equivalent to the current result.
+</p>
+
+<p>
+<code>./bug_tb.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">&lt;stdio.h&gt;</span>
+
+<span style="font-weight: bold; text-decoration: underline;">unsigned</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>();
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span> () {
+  <span style="font-weight: bold; text-decoration: underline;">FILE</span> *<span style="font-weight: bold; font-style: italic;">fp</span>;
+  <span style="font-weight: bold; text-decoration: underline;">FILE</span> *<span style="font-weight: bold; font-style: italic;">fp1</span>;
+  <span style="font-weight: bold; text-decoration: underline;">unsigned</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">resultOut</span>;
+  <span style="font-weight: bold; text-decoration: underline;">char</span> <span style="font-weight: bold; font-style: italic;">str</span>[1000];
+  fp=fopen(<span style="font-style: italic;">"out.txt"</span>,<span style="font-style: italic;">"w"</span>);
+  fp1=fopen(<span style="font-style: italic;">"out.gold.txt"</span>, <span style="font-style: italic;">"r"</span>);
+
+  resultOut = result();
+  printf(<span style="font-style: italic;">"Verilog result is %X\n"</span>, resultOut);
+  printf(<span style="font-style: italic;">"C output:"</span>);
+  <span style="font-weight: bold;">while</span> (fgets(str, 1000, fp1) != <span style="font-weight: bold; text-decoration: underline;">NULL</span>) printf(<span style="font-style: italic;">"%s"</span>, str);
+  fprintf(fp,<span style="font-style: italic;">"checksum = %X\n"</span>,resultOut);
+
+  fclose(fp);
+  fclose(fp1);
+
+  printf (<span style="font-style: italic;">"Comparing against output data \n"</span>);
+
+  <span style="font-weight: bold;">if</span> (system(<span style="font-style: italic;">"diff -w out.txt out.gold.txt"</span>)) {
+    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
+    fprintf(stdout, <span style="font-style: italic;">"FAIL: Output DOES NOT match the golden output\n"</span>);
+    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
+    <span style="font-weight: bold;">return</span> 1;
+  } <span style="font-weight: bold;">else</span> {
+    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
+    fprintf(stdout, <span style="font-style: italic;">"PASS: The output matches the golden output!\n"</span>);
+    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
+    <span style="font-weight: bold;">return</span> 0;
+  }
+}
+</pre>
+</div>
+
+<p>
+Finally, we create the <code>tcl</code> file to create the Vivado project and include all the relevant source files.
+</p>
+
+<p>
+<code>./vivado.tcl</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-tcl">open_project -reset bug
+set_top result
+add_files bug.c
+add_files -tb out.gold.txt
+add_files -tb bug_tb.c
+open_solution -reset <span style="font-style: italic;">"solution1"</span>
+set_part {xc7z020-clg484-1}
+create_clock -period 10 -name <span style="font-weight: bold;">default</span>
+csynth_design
+csim_design
+cosim_design
+export_design -format ip_catalog
+<span style="font-weight: bold;">exit</span>
+</pre>
+</div>
+
+<p>
+Then we can run the <code>vivado_hls</code> command to run Vivado HLS and check for the bug.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">vivado_hls -f vivado.tcl | tail -n24
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">INFO: [Common 17-206] Exiting xsim at Fri Oct  2 16:32:50 2020...
+INFO: [COSIM 212-316] Starting C post checking ...
+1c1
+&lt; checksum = 0
+---
+&gt; checksum = F
+Verilog result is 0
+C output:checksum = F
+Comparing against output data
+*******************************************
+FAIL: Output DOES NOT match the golden output
+*******************************************
+ERROR: [COSIM 212-361] C TB post check failed, nonzero return value <span style="font-style: italic;">'1'</span>.
+ERROR: [COSIM 212-4] *** C/RTL co-simulation finished: FAIL ***
+INFO: [COSIM 212-211] II is measurable only when transaction number is greater than 1<span style="font-weight: bold;"> in</span> RTL simulation. Otherwise, they will be marked as all NA. If user wants to calculate them, please make sure there are at least 2 transactions<span style="font-weight: bold;"> in</span> RTL simulation.
+command <span style="font-style: italic;">'ap_source'</span> returned error code
+    <span style="font-weight: bold;">while</span> executing
+<span style="font-style: italic;">"source vivado.tcl"</span>
+    (<span style="font-style: italic;">"uplevel"</span> body line 1)
+    invoked from within
+<span style="font-style: italic;">"uplevel \#0 [list source $arg] "</span>
+
+INFO: [HLS 200-112] Total elapsed time: 43.31 seconds; peak allocated memory: 92.524 MB.
+INFO: [Common 17-206] Exiting vivado_hls at Fri Oct  2 16:32:51 2020...
+</pre>
+</div>
+</article>
+<footer id="postamble" class="status">
+<p class="author">Author: Yann Herklotz</p>
+<p class="date">Created: 2021-01-06</p>
+</footer>
+</body>
+</html>

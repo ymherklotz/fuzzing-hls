@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2021-01-06 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intel i++ Lite miscompilation bug</title>
+<meta name="generator" content="Org mode">
+<meta name="author" content="Yann Herklotz">
+<link rel="stylesheet" href="/fuzzing-hls/css/org.css" type="text/css" media="screen" />
+</head>
+<body>
+<article id="content">
+<header>
+<h1 class="title">Intel i++ Lite miscompilation bug</h1>
+</header><p>
+The following C code was found to produce the wrong result in Intel i++ Lite.
+</p>
+
+<p>
+<code>./bug.c</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">"HLS/hls.h"</span>
+
+<span style="font-weight: bold;">static</span> <span style="font-weight: bold;">volatile</span> <span style="font-weight: bold; text-decoration: underline;">int32_t</span> <span style="font-weight: bold; font-style: italic;">a</span>[9][1][7];
+
+component <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>() {
+  <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">tmp</span> = 1;
+  <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">b</span> = 0; b != 2; b++) {
+    a[0][0][0] = 3;
+    a[0][0][0] = a[0][0][0];
+  }
+  <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">i</span> = 0; i &lt; 9; i++)
+    <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">k</span> = 0; k &lt; 7; k++)
+      tmp ^= a[i][0][k];
+  <span style="font-weight: bold;">return</span> tmp;
+}
+
+<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span>() {
+  printf(<span style="font-style: italic;">"%X\n"</span>, result());
+}
+</pre>
+</div>
+
+<p>
+To reproduce the bug, we need the main Makefile that Intel provides in its examples to link against the right libraries when simulating the C code.
+</p>
+
+<p>
+<code>./Makefile</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-makefile"><span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>  := test_Mod.cpp
+<span style="font-weight: bold; font-style: italic;">HLS_CXX_FLAGS</span> :=
+<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := -I/usr/include/x86_64-linux-gnu/c++/4.8
+<span style="font-weight: bold; font-style: italic;">CXX</span> := i++
+override <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) -Wno-c++11-narrowing
+<span style="font-weight: bold; font-style: italic;">VERBOSE</span> := 1
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">OS-dependant tools</span>
+ifeq ($(<span style="font-weight: bold; font-style: italic;">OS</span>),Windows_NT)
+  <span style="font-weight: bold; font-style: italic;">RM</span>  := rd /S /Q
+else
+  <span style="font-weight: bold; font-style: italic;">RM</span>  := rm -rf
+endif
+
+ifeq ($(<span style="font-weight: bold; font-style: italic;">MAKECMDGOALS</span>),)
+  $(<span style="font-weight: bold; font-style: italic;">info</span> No target specified, defaulting to test-x86-64)
+  $(<span style="font-weight: bold; font-style: italic;">info</span> Available targets: test-x86-64, test-fpga, test-gpp, clean)
+endif
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Any tools installed with HLS can be found relative to the location of i++</span>
+<span style="font-weight: bold; font-style: italic;">HLS_INSTALL_DIR</span> := $(<span style="font-weight: bold; font-style: italic;">shell</span> which i++ | sed <span style="font-style: italic;">'s|/bin/i++||g'</span>)
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Run the i++ x86 test by default</span>
+<span style="font-weight: bold;">.PHONY</span>: default
+<span style="font-weight: bold;">default</span>: test-x86-64
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Compile the component and testbench using g++ and run them as a regular program</span>
+<span style="font-weight: bold;">.PHONY</span>: test-gpp
+<span style="font-weight: bold;">test-gpp</span>: <span style="font-weight: bold; font-style: italic;">CXX</span> := clang++
+<span style="font-weight: bold;">test-gpp</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) -fsanitize=undefined -Werror -Wall -Wextra -Wno-unused-function -Wno-unused-variable -Wno-narrowing -Wno-unused-parameter -I<span style="font-style: italic;">"$(</span><span style="font-weight: bold; font-style: italic;">HLS_INSTALL_DIR</span><span style="font-style: italic;">)/include"</span> -L<span style="font-style: italic;">"$(</span><span style="font-weight: bold; font-style: italic;">HLS_INSTALL_DIR</span><span style="font-style: italic;">)/host/linux64/lib"</span> -lhls_emul -o test-gpp
+<span style="font-weight: bold;">test-gpp</span>: $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>)
+        $(<span style="font-weight: bold; font-style: italic;">CXX</span>) $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>) $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>)
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+-------------------------------------+"</span>
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"| Run ./test-gpp to execute the test. |"</span>
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+-------------------------------------+"</span>
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Run the testbench and the component as a regular program</span>
+<span style="font-weight: bold;">.PHONY</span>: test-x86-64
+<span style="font-weight: bold;">test-x86-64</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) $(<span style="font-weight: bold; font-style: italic;">HLS_CXX_FLAGS</span>) -march=x86-64 -o test-x86-64
+<span style="font-weight: bold;">test-x86-64</span>: $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>)
+        $(<span style="font-weight: bold; font-style: italic;">CXX</span>) $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>) $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>)
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+----------------------------------------+"</span>
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"| Run ./test-x86-64 to execute the test. |"</span>
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+----------------------------------------+"</span>
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Run a simulation with the C testbench and verilog component</span>
+<span style="font-weight: bold;">.PHONY</span>: test-fpga
+ifeq ($(<span style="font-weight: bold; font-style: italic;">VERBOSE</span>),1)
+  <span style="font-weight: bold;">test-fpga</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) -v
+endif
+<span style="font-weight: bold;">test-fpga</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) $(<span style="font-weight: bold; font-style: italic;">HLS_CXX_FLAGS</span>) -march=Arria10 -o test-fpga
+<span style="font-weight: bold;">test-fpga</span>: $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>)
+        $(<span style="font-weight: bold; font-style: italic;">CXX</span>) $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>) $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>)
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+--------------------------------------+"</span>
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"| Run ./test-fpga to execute the test. |"</span>
+        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+--------------------------------------+"</span>
+
+<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Clean up temprary and delivered files</span>
+<span style="font-weight: bold; font-style: italic;">CLEAN_FILES</span> := test-gpp \
+               test-gpp.prj \
+               test-fpga \
+               test-fpga.prj \
+               test-x86-64 \
+               test-x86-64.prj
+<span style="font-weight: bold;">clean</span>:
+        <span style="font-weight: bold; text-decoration: underline;">-</span>$(<span style="font-weight: bold; font-style: italic;">RM</span>) $(<span style="font-weight: bold; font-style: italic;">CLEAN_FILES</span>)
+</pre>
+</div>
+
+<p>
+Then the bug can be reproduced by running <code>make</code>, which also runs <code>vsim</code> to simulate the produced Verilog.  First, we can generate the golden output for the C file.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">make test-gpp &gt;make.log 2&gt;&amp;1
+./test-gpp &gt;test-gpp.log 2&gt;&amp;1
+cat test-gpp.log
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">2
+</pre>
+</div>
+
+<p>
+Then we can generate the actual output that Intel produces.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">make test-fpga &gt;make.log 2&gt;&amp;1
+./test-fpga &gt;test-fpga.log 2&gt;&amp;1
+cat test-fpga.log
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">0
+</pre>
+</div>
+</article>
+<footer id="postamble" class="status">
+<p class="author">Author: Yann Herklotz</p>
+<p class="date">Created: 2021-01-06</p>
+</footer>
+</body>
+</html>
