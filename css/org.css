@@ -13,3 +13,15 @@ article {
     max-width: 60rem;
     margin: 0 auto;
 }
+
+table {
+  border-spacing: 0;
+  width: 100%;
+  border-bottom: 0.15rem solid #171d30;
+  border-top: 0.15rem solid #171d30;
+}
+
+th, td {
+  padding: 5px 15px 5px 15px;
+  text-align: left;
+}
