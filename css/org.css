@@ -25,3 +25,7 @@ th, td {
   padding: 5px 15px 5px 15px;
   text-align: left;
 }
+
+th {
+    border-bottom: 1px solid #222;
+}
