@@ -9,7 +9,7 @@ h1 {
     margin: 4rem 0;
 }
 
-pre, pre > span, code {
+pre, pre > *, code {
     font-family: "Iosevka Web", Iosevka, monospace;
     font-size: 85%;
 }
