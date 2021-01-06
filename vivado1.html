@@ -231,13 +231,13 @@ To create the project layout, we can first create the <code>./bug.c</code> file 
 <code>./bug.c</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span style="font-weight: bold; text-decoration: underline;">unsigned</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">b</span> = 0x1194D7FF;
-<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">a</span>[6] = {1, 1, 1, 1, 1, 1};
+<pre class="src src-C"><span class="org-type">unsigned</span> <span class="org-type">int</span> <span class="org-variable-name">b</span> = 0x1194D7FF;
+<span class="org-type">int</span> <span class="org-variable-name">a</span>[6] = {1, 1, 1, 1, 1, 1};
 
-<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>() {
-    <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">c</span> = 0; c &lt; 2; c++)
+<span class="org-type">int</span> <span class="org-function-name">result</span>() {
+    <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">c</span> = 0; c &lt; 2; c++)
         b = b &gt;&gt; a[c];
-    <span style="font-weight: bold;">return</span> b;
+    <span class="org-keyword">return</span> b;
 }
 </pre>
 </div>
@@ -254,11 +254,11 @@ We then have to generate a main function to provide the golden output.  We first
 <code>./bug_driver.c</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">"stdio.h"</span>
+<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">"stdio.h"</span>
 
-<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>();
+<span class="org-type">int</span> <span class="org-function-name">result</span>();
 
-<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span>() { printf(<span style="font-style: italic;">"checksum = %X\n"</span>, result()); }
+<span class="org-type">int</span> <span class="org-function-name">main</span>() { printf(<span class="org-string">"checksum = %X\n"</span>, result()); }
 </pre>
 </div>
 
@@ -285,39 +285,39 @@ We then also need to provide a test bench for Vivado that will detect a mismatch
 <code>./bug_tb.c</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">&lt;stdio.h&gt;</span>
+<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdio.h&gt;</span>
 
-<span style="font-weight: bold; text-decoration: underline;">unsigned</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>();
+<span class="org-type">unsigned</span> <span class="org-type">int</span> <span class="org-function-name">result</span>();
 
-<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span> () {
-  <span style="font-weight: bold; text-decoration: underline;">FILE</span> *<span style="font-weight: bold; font-style: italic;">fp</span>;
-  <span style="font-weight: bold; text-decoration: underline;">FILE</span> *<span style="font-weight: bold; font-style: italic;">fp1</span>;
-  <span style="font-weight: bold; text-decoration: underline;">unsigned</span> <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">resultOut</span>;
-  <span style="font-weight: bold; text-decoration: underline;">char</span> <span style="font-weight: bold; font-style: italic;">str</span>[1000];
-  fp=fopen(<span style="font-style: italic;">"out.txt"</span>,<span style="font-style: italic;">"w"</span>);
-  fp1=fopen(<span style="font-style: italic;">"out.gold.txt"</span>, <span style="font-style: italic;">"r"</span>);
+<span class="org-type">int</span> <span class="org-function-name">main</span> () {
+  <span class="org-type">FILE</span> *<span class="org-variable-name">fp</span>;
+  <span class="org-type">FILE</span> *<span class="org-variable-name">fp1</span>;
+  <span class="org-type">unsigned</span> <span class="org-type">int</span> <span class="org-variable-name">resultOut</span>;
+  <span class="org-type">char</span> <span class="org-variable-name">str</span>[1000];
+  fp=fopen(<span class="org-string">"out.txt"</span>,<span class="org-string">"w"</span>);
+  fp1=fopen(<span class="org-string">"out.gold.txt"</span>, <span class="org-string">"r"</span>);
 
   resultOut = result();
-  printf(<span style="font-style: italic;">"Verilog result is %X\n"</span>, resultOut);
-  printf(<span style="font-style: italic;">"C output:"</span>);
-  <span style="font-weight: bold;">while</span> (fgets(str, 1000, fp1) != <span style="font-weight: bold; text-decoration: underline;">NULL</span>) printf(<span style="font-style: italic;">"%s"</span>, str);
-  fprintf(fp,<span style="font-style: italic;">"checksum = %X\n"</span>,resultOut);
+  printf(<span class="org-string">"Verilog result is %X\n"</span>, resultOut);
+  printf(<span class="org-string">"C output:"</span>);
+  <span class="org-keyword">while</span> (fgets(str, 1000, fp1) != <span class="org-constant">NULL</span>) printf(<span class="org-string">"%s"</span>, str);
+  fprintf(fp,<span class="org-string">"checksum = %X\n"</span>,resultOut);
 
   fclose(fp);
   fclose(fp1);
 
-  printf (<span style="font-style: italic;">"Comparing against output data \n"</span>);
+  printf (<span class="org-string">"Comparing against output data \n"</span>);
 
-  <span style="font-weight: bold;">if</span> (system(<span style="font-style: italic;">"diff -w out.txt out.gold.txt"</span>)) {
-    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
-    fprintf(stdout, <span style="font-style: italic;">"FAIL: Output DOES NOT match the golden output\n"</span>);
-    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
-    <span style="font-weight: bold;">return</span> 1;
-  } <span style="font-weight: bold;">else</span> {
-    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
-    fprintf(stdout, <span style="font-style: italic;">"PASS: The output matches the golden output!\n"</span>);
-    fprintf(stdout, <span style="font-style: italic;">"*******************************************\n"</span>);
-    <span style="font-weight: bold;">return</span> 0;
+  <span class="org-keyword">if</span> (system(<span class="org-string">"diff -w out.txt out.gold.txt"</span>)) {
+    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
+    fprintf(stdout, <span class="org-string">"FAIL: Output DOES NOT match the golden output\n"</span>);
+    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
+    <span class="org-keyword">return</span> 1;
+  } <span class="org-keyword">else</span> {
+    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
+    fprintf(stdout, <span class="org-string">"PASS: The output matches the golden output!\n"</span>);
+    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
+    <span class="org-keyword">return</span> 0;
   }
 }
 </pre>
@@ -336,14 +336,14 @@ set_top result
 add_files bug.c
 add_files -tb out.gold.txt
 add_files -tb bug_tb.c
-open_solution -reset <span style="font-style: italic;">"solution1"</span>
+open_solution -reset <span class="org-string">"solution1"</span>
 set_part {xc7z020-clg484-1}
-create_clock -period 10 -name <span style="font-weight: bold;">default</span>
+create_clock -period 10 -name <span class="org-keyword">default</span>
 csynth_design
 csim_design
 cosim_design
 export_design -format ip_catalog
-<span style="font-weight: bold;">exit</span>
+<span class="org-keyword">exit</span>
 </pre>
 </div>
 
@@ -369,15 +369,15 @@ Comparing against output data
 *******************************************
 FAIL: Output DOES NOT match the golden output
 *******************************************
-ERROR: [COSIM 212-361] C TB post check failed, nonzero return value <span style="font-style: italic;">'1'</span>.
+ERROR: [COSIM 212-361] C TB post check failed, nonzero return value <span class="org-string">'1'</span>.
 ERROR: [COSIM 212-4] *** C/RTL co-simulation finished: FAIL ***
-INFO: [COSIM 212-211] II is measurable only when transaction number is greater than 1<span style="font-weight: bold;"> in</span> RTL simulation. Otherwise, they will be marked as all NA. If user wants to calculate them, please make sure there are at least 2 transactions<span style="font-weight: bold;"> in</span> RTL simulation.
-command <span style="font-style: italic;">'ap_source'</span> returned error code
-    <span style="font-weight: bold;">while</span> executing
-<span style="font-style: italic;">"source vivado.tcl"</span>
-    (<span style="font-style: italic;">"uplevel"</span> body line 1)
+INFO: [COSIM 212-211] II is measurable only when transaction number is greater than 1<span class="org-keyword"> in</span> RTL simulation. Otherwise, they will be marked as all NA. If user wants to calculate them, please make sure there are at least 2 transactions<span class="org-keyword"> in</span> RTL simulation.
+command <span class="org-string">'ap_source'</span> returned error code
+    <span class="org-keyword">while</span> executing
+<span class="org-string">"source vivado.tcl"</span>
+    (<span class="org-string">"uplevel"</span> body line 1)
     invoked from within
-<span style="font-style: italic;">"uplevel \#0 [list source $arg] "</span>
+<span class="org-string">"uplevel \#0 [list source $arg] "</span>
 
 INFO: [HLS 200-112] Total elapsed time: 42.76 seconds; peak allocated memory: 80.380 MB.
 INFO: [Common 17-206] Exiting vivado_hls at Fri Oct  2 16:10:49 2020...

@@ -227,24 +227,24 @@ The following C code was found to produce the wrong result in Intel i++ Lite.
 <code>./bug.c</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span style="font-weight: bold;">#include</span> <span style="font-style: italic;">"HLS/hls.h"</span>
+<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">"HLS/hls.h"</span>
 
-<span style="font-weight: bold;">static</span> <span style="font-weight: bold;">volatile</span> <span style="font-weight: bold; text-decoration: underline;">int32_t</span> <span style="font-weight: bold; font-style: italic;">a</span>[9][1][7];
+<span class="org-keyword">static</span> <span class="org-keyword">volatile</span> <span class="org-type">int32_t</span> <span class="org-variable-name">a</span>[9][1][7];
 
-component <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">result</span>() {
-  <span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">tmp</span> = 1;
-  <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">b</span> = 0; b != 2; b++) {
+component <span class="org-type">int</span> <span class="org-function-name">result</span>() {
+  <span class="org-type">int</span> <span class="org-variable-name">tmp</span> = 1;
+  <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">b</span> = 0; b != 2; b++) {
     a[0][0][0] = 3;
     a[0][0][0] = a[0][0][0];
   }
-  <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">i</span> = 0; i &lt; 9; i++)
-    <span style="font-weight: bold;">for</span> (<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold; font-style: italic;">k</span> = 0; k &lt; 7; k++)
+  <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">i</span> = 0; i &lt; 9; i++)
+    <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">k</span> = 0; k &lt; 7; k++)
       tmp ^= a[i][0][k];
-  <span style="font-weight: bold;">return</span> tmp;
+  <span class="org-keyword">return</span> tmp;
 }
 
-<span style="font-weight: bold; text-decoration: underline;">int</span> <span style="font-weight: bold;">main</span>() {
-  printf(<span style="font-style: italic;">"%X\n"</span>, result());
+<span class="org-type">int</span> <span class="org-function-name">main</span>() {
+  printf(<span class="org-string">"%X\n"</span>, result());
 }
 </pre>
 </div>
@@ -257,72 +257,72 @@ To reproduce the bug, we need the main Makefile that Intel provides in its examp
 <code>./Makefile</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-makefile"><span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>  := test_Mod.cpp
-<span style="font-weight: bold; font-style: italic;">HLS_CXX_FLAGS</span> :=
-<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := -I/usr/include/x86_64-linux-gnu/c++/4.8
-<span style="font-weight: bold; font-style: italic;">CXX</span> := i++
-override <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) -Wno-c++11-narrowing
-<span style="font-weight: bold; font-style: italic;">VERBOSE</span> := 1
+<pre class="src src-makefile"><span class="org-variable-name">SOURCE_FILES</span>  := test_Mod.cpp
+<span class="org-variable-name">HLS_CXX_FLAGS</span> :=
+<span class="org-variable-name">CXXFLAGS</span> := -I/usr/include/x86_64-linux-gnu/c++/4.8
+<span class="org-variable-name">CXX</span> := i++
+override <span class="org-variable-name">CXXFLAGS</span> := $(<span class="org-variable-name">CXXFLAGS</span>) -Wno-c++11-narrowing
+<span class="org-variable-name">VERBOSE</span> := 1
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">OS-dependant tools</span>
-ifeq ($(<span style="font-weight: bold; font-style: italic;">OS</span>),Windows_NT)
-  <span style="font-weight: bold; font-style: italic;">RM</span>  := rd /S /Q
+<span class="org-comment-delimiter"># </span><span class="org-comment">OS-dependant tools</span>
+ifeq ($(<span class="org-variable-name">OS</span>),Windows_NT)
+  <span class="org-variable-name">RM</span>  := rd /S /Q
 else
-  <span style="font-weight: bold; font-style: italic;">RM</span>  := rm -rf
+  <span class="org-variable-name">RM</span>  := rm -rf
 endif
 
-ifeq ($(<span style="font-weight: bold; font-style: italic;">MAKECMDGOALS</span>),)
-  $(<span style="font-weight: bold; font-style: italic;">info</span> No target specified, defaulting to test-x86-64)
-  $(<span style="font-weight: bold; font-style: italic;">info</span> Available targets: test-x86-64, test-fpga, test-gpp, clean)
+ifeq ($(<span class="org-variable-name">MAKECMDGOALS</span>),)
+  $(<span class="org-variable-name">info</span> No target specified, defaulting to test-x86-64)
+  $(<span class="org-variable-name">info</span> Available targets: test-x86-64, test-fpga, test-gpp, clean)
 endif
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Any tools installed with HLS can be found relative to the location of i++</span>
-<span style="font-weight: bold; font-style: italic;">HLS_INSTALL_DIR</span> := $(<span style="font-weight: bold; font-style: italic;">shell</span> which i++ | sed <span style="font-style: italic;">'s|/bin/i++||g'</span>)
+<span class="org-comment-delimiter"># </span><span class="org-comment">Any tools installed with HLS can be found relative to the location of i++</span>
+<span class="org-variable-name">HLS_INSTALL_DIR</span> := $(<span class="org-variable-name">shell</span> which i++ | sed <span class="org-string">'s|/bin/i++||g'</span>)
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Run the i++ x86 test by default</span>
-<span style="font-weight: bold;">.PHONY</span>: default
-<span style="font-weight: bold;">default</span>: test-x86-64
+<span class="org-comment-delimiter"># </span><span class="org-comment">Run the i++ x86 test by default</span>
+<span class="org-makefile-targets">.PHONY</span>: default
+<span class="org-makefile-targets">default</span>: test-x86-64
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Compile the component and testbench using g++ and run them as a regular program</span>
-<span style="font-weight: bold;">.PHONY</span>: test-gpp
-<span style="font-weight: bold;">test-gpp</span>: <span style="font-weight: bold; font-style: italic;">CXX</span> := clang++
-<span style="font-weight: bold;">test-gpp</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) -fsanitize=undefined -Werror -Wall -Wextra -Wno-unused-function -Wno-unused-variable -Wno-narrowing -Wno-unused-parameter -I<span style="font-style: italic;">"$(</span><span style="font-weight: bold; font-style: italic;">HLS_INSTALL_DIR</span><span style="font-style: italic;">)/include"</span> -L<span style="font-style: italic;">"$(</span><span style="font-weight: bold; font-style: italic;">HLS_INSTALL_DIR</span><span style="font-style: italic;">)/host/linux64/lib"</span> -lhls_emul -o test-gpp
-<span style="font-weight: bold;">test-gpp</span>: $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>)
-        $(<span style="font-weight: bold; font-style: italic;">CXX</span>) $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>) $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>)
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+-------------------------------------+"</span>
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"| Run ./test-gpp to execute the test. |"</span>
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+-------------------------------------+"</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">Compile the component and testbench using g++ and run them as a regular program</span>
+<span class="org-makefile-targets">.PHONY</span>: test-gpp
+<span class="org-makefile-targets">test-gpp</span>: <span class="org-variable-name">CXX</span> := clang++
+<span class="org-makefile-targets">test-gpp</span>: <span class="org-variable-name">CXXFLAGS</span> := $(<span class="org-variable-name">CXXFLAGS</span>) -fsanitize=undefined -Werror -Wall -Wextra -Wno-unused-function -Wno-unused-variable -Wno-narrowing -Wno-unused-parameter -I<span class="org-string">"$(</span><span class="org-string"><span class="org-variable-name">HLS_INSTALL_DIR</span></span><span class="org-string">)/include"</span> -L<span class="org-string">"$(</span><span class="org-string"><span class="org-variable-name">HLS_INSTALL_DIR</span></span><span class="org-string">)/host/linux64/lib"</span> -lhls_emul -o test-gpp
+<span class="org-makefile-targets">test-gpp</span>: $(<span class="org-variable-name">SOURCE_FILES</span>)
+        $(<span class="org-variable-name">CXX</span>) $(<span class="org-variable-name">SOURCE_FILES</span>) $(<span class="org-variable-name">CXXFLAGS</span>)
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"+-------------------------------------+"</span></span>
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"| Run ./test-gpp to execute the test. |"</span></span>
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"+-------------------------------------+"</span></span>
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Run the testbench and the component as a regular program</span>
-<span style="font-weight: bold;">.PHONY</span>: test-x86-64
-<span style="font-weight: bold;">test-x86-64</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) $(<span style="font-weight: bold; font-style: italic;">HLS_CXX_FLAGS</span>) -march=x86-64 -o test-x86-64
-<span style="font-weight: bold;">test-x86-64</span>: $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>)
-        $(<span style="font-weight: bold; font-style: italic;">CXX</span>) $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>) $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>)
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+----------------------------------------+"</span>
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"| Run ./test-x86-64 to execute the test. |"</span>
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+----------------------------------------+"</span>
+<span class="org-comment-delimiter"># </span><span class="org-comment">Run the testbench and the component as a regular program</span>
+<span class="org-makefile-targets">.PHONY</span>: test-x86-64
+<span class="org-makefile-targets">test-x86-64</span>: <span class="org-variable-name">CXXFLAGS</span> := $(<span class="org-variable-name">CXXFLAGS</span>) $(<span class="org-variable-name">HLS_CXX_FLAGS</span>) -march=x86-64 -o test-x86-64
+<span class="org-makefile-targets">test-x86-64</span>: $(<span class="org-variable-name">SOURCE_FILES</span>)
+        $(<span class="org-variable-name">CXX</span>) $(<span class="org-variable-name">SOURCE_FILES</span>) $(<span class="org-variable-name">CXXFLAGS</span>)
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"+----------------------------------------+"</span></span>
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"| Run ./test-x86-64 to execute the test. |"</span></span>
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"+----------------------------------------+"</span></span>
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Run a simulation with the C testbench and verilog component</span>
-<span style="font-weight: bold;">.PHONY</span>: test-fpga
-ifeq ($(<span style="font-weight: bold; font-style: italic;">VERBOSE</span>),1)
-  <span style="font-weight: bold;">test-fpga</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) -v
+<span class="org-comment-delimiter"># </span><span class="org-comment">Run a simulation with the C testbench and verilog component</span>
+<span class="org-makefile-targets">.PHONY</span>: test-fpga
+ifeq ($(<span class="org-variable-name">VERBOSE</span>),1)
+  <span class="org-makefile-targets">test-fpga</span>: <span class="org-variable-name">CXXFLAGS</span> := $(<span class="org-variable-name">CXXFLAGS</span>) -v
 endif
-<span style="font-weight: bold;">test-fpga</span>: <span style="font-weight: bold; font-style: italic;">CXXFLAGS</span> := $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>) $(<span style="font-weight: bold; font-style: italic;">HLS_CXX_FLAGS</span>) -march=Arria10 -o test-fpga
-<span style="font-weight: bold;">test-fpga</span>: $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>)
-        $(<span style="font-weight: bold; font-style: italic;">CXX</span>) $(<span style="font-weight: bold; font-style: italic;">SOURCE_FILES</span>) $(<span style="font-weight: bold; font-style: italic;">CXXFLAGS</span>)
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+--------------------------------------+"</span>
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"| Run ./test-fpga to execute the test. |"</span>
-        <span style="font-weight: bold; text-decoration: underline;">@</span>echo <span style="font-style: italic;">"+--------------------------------------+"</span>
+<span class="org-makefile-targets">test-fpga</span>: <span class="org-variable-name">CXXFLAGS</span> := $(<span class="org-variable-name">CXXFLAGS</span>) $(<span class="org-variable-name">HLS_CXX_FLAGS</span>) -march=Arria10 -o test-fpga
+<span class="org-makefile-targets">test-fpga</span>: $(<span class="org-variable-name">SOURCE_FILES</span>)
+        $(<span class="org-variable-name">CXX</span>) $(<span class="org-variable-name">SOURCE_FILES</span>) $(<span class="org-variable-name">CXXFLAGS</span>)
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"+--------------------------------------+"</span></span>
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"| Run ./test-fpga to execute the test. |"</span></span>
+        <span class="org-type">@</span><span class="org-makefile-shell">echo </span><span class="org-string"><span class="org-makefile-shell">"+--------------------------------------+"</span></span>
 
-<span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Clean up temprary and delivered files</span>
-<span style="font-weight: bold; font-style: italic;">CLEAN_FILES</span> := test-gpp \
+<span class="org-comment-delimiter"># </span><span class="org-comment">Clean up temprary and delivered files</span>
+<span class="org-variable-name">CLEAN_FILES</span> := test-gpp \
                test-gpp.prj \
                test-fpga \
                test-fpga.prj \
                test-x86-64 \
                test-x86-64.prj
-<span style="font-weight: bold;">clean</span>:
-        <span style="font-weight: bold; text-decoration: underline;">-</span>$(<span style="font-weight: bold; font-style: italic;">RM</span>) $(<span style="font-weight: bold; font-style: italic;">CLEAN_FILES</span>)
+<span class="org-makefile-targets">clean</span>:
+        <span class="org-type">-</span><span class="org-makefile-shell">$(</span><span class="org-makefile-shell"><span class="org-variable-name">RM</span></span><span class="org-makefile-shell">) $(</span><span class="org-makefile-shell"><span class="org-variable-name">CLEAN_FILES</span></span><span class="org-makefile-shell">)</span>
 </pre>
 </div>
 
