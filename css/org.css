@@ -9,9 +9,13 @@ h1 {
     margin: 4rem 0;
 }
 
-pre, pre > *, code {
-    font-family: "Iosevka Web", Iosevka, monospace;
+code {
+    font-family: "Iosevka Web", Iosevka, Inconsolata, monospace;
     font-size: 85%;
+}
+
+pre > *, pre {
+  font-family: "Iosevka Web", Iosevka, Inconsolata, monospace
 }
 
 article {
