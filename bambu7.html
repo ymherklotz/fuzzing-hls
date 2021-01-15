@@ -4,9 +4,8 @@
 <!-- 2021-01-15 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vivado Shift Bug</title>
+<title>Issue with for loops affecting the final result</title>
 <meta name="generator" content="Org mode">
-<meta name="author" content="Yann Herklotz">
 <style type="text/css">
  <!--/*--><![CDATA[/*><!--*/
   .title  { text-align: center;
@@ -218,182 +217,143 @@
 <body>
 <article id="content">
 <header>
-<h1 class="title">Vivado Shift Bug</h1>
-</header><p>
-The following bug produces an error in Vivado HLS 2018.3, 2019.1 and 2019.2.
-</p>
+<h1 class="title">Issue with for loops affecting the final result</h1>
+</header><nav id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org0afe792">1. Running the testcase</a></li>
+</ul>
+</div>
+</nav>
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Reported</th>
+<th scope="col" class="org-left">Fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><a href="https://github.com/ferrandi/PandA-bambu/issues/27">Issue</a></td>
+<td class="org-left">X</td>
+</tr>
+</tbody>
+</table>
 
 <p>
-To create the project layout, we can first create the <code>./bug.c</code> file which produces the bug.
+Considering the following test case, the result b should be equal to 10, because the result of the value assigned to b should be (j + 9) % 23 in each iteration of the loop, which gives 10 for the last iteration.
 </p>
 
 <p>
 <code>./bug.c</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span class="org-keyword">volatile</span> <span class="org-type">unsigned</span> <span class="org-type">int</span> <span class="org-variable-name">g</span> = 0;
-<span class="org-type">int</span> <span class="org-variable-name">a</span>[256] = {0};
-<span class="org-type">int</span> <span class="org-variable-name">c</span> = 0;
+<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
 
-<span class="org-type">void</span> <span class="org-function-name">d</span>(<span class="org-type">char</span> <span class="org-variable-name">b</span>) {
-  c = (c &amp; 4095) ^ a[(c ^ b) &amp; 15];
-}
-
-<span class="org-type">void</span> <span class="org-function-name">e</span>(<span class="org-type">long</span> <span class="org-variable-name">f</span>) {
-  d(f); d(f &gt;&gt; 8); d(f &gt;&gt; 16); d(f &gt;&gt; 24);
-  d(f &gt;&gt; 32); d(f &gt;&gt; 40); d(f &gt;&gt; 48);
-}
-
-<span class="org-type">int</span> <span class="org-function-name">result</span>() {
-  <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">i</span> = 0; i &lt; 56; i++)
-    a[i] = i;
-  e(g);
-  e(-2L);
-  <span class="org-keyword">return</span> c;
+<span class="org-type">int</span> <span class="org-function-name">main</span>() {
+    <span class="org-type">int32_t</span> <span class="org-variable-name">b</span> = 0;
+    <span class="org-type">int32_t</span> <span class="org-variable-name">a</span> = 0;
+    <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">j</span> = 0; j &lt; 2; j++) {
+        <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">i</span> = 0; i &lt; 1; i++) a = 1;
+        b = a == 0 ? 0 : ((<span class="org-type">int64_t</span>)(j + 9)) % 23;
+    }
+    <span class="org-keyword">return</span> b;
 }
 </pre>
 </div>
 
 <p>
-We then have to generate a main function to provide the golden output.  We first write the following driver into <code>./bug_driver.c</code> which contains the main function that generates the checksum.
+However, Bambu seems to return 3 instead. In addition to that, if any of the loops are removed, the result will be correct for Bambu, even though the loops shouldn&rsquo;t affect the final result.
 </p>
 
 <p>
-<code>./bug_driver.c</code>
+I have uploaded a zipfile (testcase2.zip) with a script to rerun this testcase (run<sub>single.sh</sub>). This was tested in the following version of Bambu:
+</p>
+
+<pre class="example">
+Version: PandA 0.9.7-dev - Revision 6f2d6eb92cb1507af12248a503ef39990d3d9c23-SROA_TCAD_release
+</pre>
+
+<section id="outline-container-org0afe792" class="outline-2">
+<h2 id="org0afe792"><span class="section-number-2">1</span> Running the testcase</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+The following script reproduces the result mentioned above.
+</p>
+
+<p>
+<code>./run.sh</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">"stdio.h"</span>
+<pre class="src src-sh"><span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/</span><span class="org-keyword">bash</span>
 
-<span class="org-type">int</span> <span class="org-function-name">result</span>();
+bambu test.c &gt;bambu.log 2&gt;&amp;1
+iverilog top.v tb.v -o top
+./top &gt;out.iverilog.txt
+<span class="org-variable-name">result_bambu_hex</span>=$(sed -E -e <span class="org-string">'s/checksum = ([0-9a-fA-F]+)/\1/'</span> out.iverilog.txt)
+<span class="org-variable-name">result_bambu</span>=$(( 16#$<span class="org-variable-name">result_bambu_hex</span> ))
 
-<span class="org-type">int</span> <span class="org-function-name">main</span>() { printf(<span class="org-string">"checksum = %X\n"</span>, result()); }
+gcc test.c -o test
+./test
+<span class="org-variable-name">result_gcc</span>=$<span class="org-variable-name">?</span>
+
+<span class="org-keyword">if</span> [[ <span class="org-string">"$result_bambu"</span> -eq <span class="org-string">"$result_gcc"</span> ]]; <span class="org-keyword">then</span>
+    <span class="org-builtin">echo</span> <span class="org-string">"$result_bambu = $result_gcc"</span>
+    <span class="org-keyword">exit</span> 0
+<span class="org-keyword">else</span>
+    <span class="org-builtin">echo</span> <span class="org-string">"$result_bambu != $result_gcc"</span>
+    <span class="org-keyword">exit</span> 1
+<span class="org-keyword">fi</span>
 </pre>
 </div>
 
 <p>
-Then generate the golden output using GCC by compiling the driver with the initial bug and check the golden output.  This golden output is then written to <code>out.gold.txt</code>.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-sh">gcc bug_driver.c bug.c -o bug_gcc
-./bug_gcc | tee out.gold.txt
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">checksum = F
-</pre>
-</div>
-
-<p>
-We then also need to provide a test bench for Vivado that will detect a mismatch between the Verilog simulation and C output.  This loads the file <code>out.gold.txt</code> and checks that the output is equivalent to the current result.
+Using the following testbench.
 </p>
 
 <p>
-<code>./bug_tb.c</code>
+<code>./tb.v</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdio.h&gt;</span>
+<pre class="src src-verilog"><span class="org-keyword">module</span> testbench;
+   <span class="org-type">reg</span> clock, reset, start_port;
+   <span class="org-type">wire</span> done_port;
+   <span class="org-type">wire</span> [31:0] return_port;
 
-<span class="org-type">unsigned</span> <span class="org-type">int</span> <span class="org-function-name">result</span>();
+   main <span class="org-function-name">m</span>(.<span class="org-function-name">clock</span>(clock), .<span class="org-function-name">reset</span>(reset), .<span class="org-function-name">start_port</span>(start_port), .<span class="org-function-name">done_port</span>(done_port), .<span class="org-function-name">return_port</span>(return_port));
 
-<span class="org-type">int</span> <span class="org-function-name">main</span> () {
-  <span class="org-type">FILE</span> *<span class="org-variable-name">fp</span>;
-  <span class="org-type">FILE</span> *<span class="org-variable-name">fp1</span>;
-  <span class="org-type">unsigned</span> <span class="org-type">int</span> <span class="org-variable-name">resultOut</span>;
-  <span class="org-type">char</span> <span class="org-variable-name">str</span>[1000];
-  fp=fopen(<span class="org-string">"out.txt"</span>,<span class="org-string">"w"</span>);
-  fp1=fopen(<span class="org-string">"out.gold.txt"</span>, <span class="org-string">"r"</span>);
+   <span class="org-keyword">always</span><span class="org-type"> #10</span> clock = ~clock;
 
-  resultOut = result();
-  printf(<span class="org-string">"Verilog result is %X\n"</span>, resultOut);
-  printf(<span class="org-string">"C output:"</span>);
-  <span class="org-keyword">while</span> (fgets(str, 1000, fp1) != <span class="org-constant">NULL</span>) printf(<span class="org-string">"%s"</span>, str);
-  fprintf(fp,<span class="org-string">"checksum = %X\n"</span>,resultOut);
+   <span class="org-keyword">initial</span> <span class="org-type">begin</span>
+      clock = 0;
+      reset = 0;
+      start_port = 0;
+      <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock) reset = 0;
+      <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock) reset = 1; start_port = 1;
+      <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock) start_port = 0;
+   <span class="org-type">end</span>
 
-  fclose(fp);
-  fclose(fp1);
+   <span class="org-keyword">always</span> <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock)
+     <span class="org-keyword">if</span> (done_port) <span class="org-type">begin</span>
+        <span class="org-keyword">$display</span>(<span class="org-string">"checksum = %h"</span>, return_port);
+        <span class="org-keyword">$finish</span>;
+     <span class="org-type">end</span>
 
-  printf (<span class="org-string">"Comparing against output data \n"</span>);
-
-  <span class="org-keyword">if</span> (system(<span class="org-string">"diff -w out.txt out.gold.txt"</span>)) {
-    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
-    fprintf(stdout, <span class="org-string">"FAIL: Output DOES NOT match the golden output\n"</span>);
-    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
-    <span class="org-keyword">return</span> 1;
-  } <span class="org-keyword">else</span> {
-    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
-    fprintf(stdout, <span class="org-string">"PASS: The output matches the golden output!\n"</span>);
-    fprintf(stdout, <span class="org-string">"*******************************************\n"</span>);
-    <span class="org-keyword">return</span> 0;
-  }
-}
+<span class="org-keyword">endmodule</span>
 </pre>
 </div>
-
-<p>
-Finally, we create the <code>tcl</code> file to create the Vivado project and include all the relevant source files.
-</p>
-
-<p>
-<code>./vivado.tcl</code>
-</p>
-<div class="org-src-container">
-<pre class="src src-tcl">open_project -reset bug
-set_top result
-add_files bug.c
-add_files -tb out.gold.txt
-add_files -tb bug_tb.c
-open_solution -reset <span class="org-string">"solution1"</span>
-set_part {xc7z020-clg484-1}
-create_clock -period 10 -name <span class="org-keyword">default</span>
-csynth_design
-csim_design
-cosim_design
-export_design -format ip_catalog
-<span class="org-keyword">exit</span>
-</pre>
 </div>
-
-<p>
-Then we can run the <code>vivado_hls</code> command to run Vivado HLS and check for the bug.
-</p>
-
-<div class="org-src-container">
-<pre class="src src-sh">vivado_hls -f vivado.tcl | tail -n24
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-sh">INFO: [Common 17-206] Exiting xsim at Fri Oct  2 16:32:50 2020...
-INFO: [COSIM 212-316] Starting C post checking ...
-1c1
-&lt; checksum = 0
----
-&gt; checksum = F
-Verilog result is 0
-C output:checksum = F
-Comparing against output data
-*******************************************
-FAIL: Output DOES NOT match the golden output
-*******************************************
-ERROR: [COSIM 212-361] C TB post check failed, nonzero return value <span class="org-string">'1'</span>.
-ERROR: [COSIM 212-4] *** C/RTL co-simulation finished: FAIL ***
-INFO: [COSIM 212-211] II is measurable only when transaction number is greater than 1<span class="org-keyword"> in</span> RTL simulation. Otherwise, they will be marked as all NA. If user wants to calculate them, please make sure there are at least 2 transactions<span class="org-keyword"> in</span> RTL simulation.
-command <span class="org-string">'ap_source'</span> returned error code
-    <span class="org-keyword">while</span> executing
-<span class="org-string">"source vivado.tcl"</span>
-    (<span class="org-string">"uplevel"</span> body line 1)
-    invoked from within
-<span class="org-string">"uplevel \#0 [list source $arg] "</span>
-
-INFO: [HLS 200-112] Total elapsed time: 43.31 seconds; peak allocated memory: 92.524 MB.
-INFO: [Common 17-206] Exiting vivado_hls at Fri Oct  2 16:32:51 2020...
-</pre>
-</div>
+</section>
 </article>
 <footer id="postamble" class="status">
-<p class="author">Author: Yann Herklotz</p>
 <p class="date">Created: 2021-01-15</p>
 </footer>
 </body>
