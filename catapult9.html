@@ -4,7 +4,8 @@
 <!-- 2023-06-25 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Issue with for loops affecting the final result</title>
+<title>Catapult C simulation mismatch</title>
+<meta name="author" content="Yann Herklotz" />
 <meta name="generator" content="Org Mode" />
 <style>
   #content { max-width: 60em; margin: auto; }
@@ -195,135 +196,182 @@
 <body>
 <article id="content" class="content">
 <header>
-<h1 class="title">Issue with for loops affecting the final result</h1>
+<h1 class="title">Catapult C simulation mismatch</h1>
 </header><nav id="table-of-contents" role="doc-toc">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#orgeea2c90">1. Running the testcase</a></li>
+<li><a href="#org1338481">1. Description of bug</a></li>
+<li><a href="#orge6b01fb">2. Reproduction</a></li>
 </ul>
 </div>
 </nav>
-<table>
-
-
-<colgroup>
-<col  class="org-left">
-
-<col  class="org-left">
-</colgroup>
-<thead>
-<tr>
-<th scope="col" class="org-left">Reported</th>
-<th scope="col" class="org-left">Fixed</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="org-left"><a href="https://github.com/ferrandi/PandA-bambu/issues/27">Issue</a></td>
-<td class="org-left">X</td>
-</tr>
-</tbody>
-</table>
-
 <p>
-Considering the following test case, the result b should be equal to 10, because the result of the value assigned to b should be (j + 9) % 23 in each iteration of the loop, which gives 10 for the last iteration.
+The following bug was found in Catapult C 2020.
+</p>
+
+<section id="outline-container-org1338481" class="outline-2">
+<h2 id="org1338481"><span class="section-number-2">1.</span> Description of bug</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+The following code produces the wrong result when compiled with Catapult C 2020.
+This is just a modulo operation with a negative right-hand side number.  The
+expected result is <code>1</code>, however, Catapult C with the following example outputs
+<code>0xffffffff</code> (<code>-1</code> if interpreted as signed).
 </p>
 
 <p>
-<code>./bug.c</code>
+<code>./bug.cpp</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-C"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
-
-<span class="org-type">int</span> <span class="org-function-name">main</span>() {
-    <span class="org-type">int32_t</span> <span class="org-variable-name">b</span> = 0;
-    <span class="org-type">int32_t</span> <span class="org-variable-name">a</span> = 0;
-    <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">j</span> = 0; j &lt; 2; j++) {
-        <span class="org-keyword">for</span> (<span class="org-type">int</span> <span class="org-variable-name">i</span> = 0; i &lt; 1; i++) a = 1;
-        b = a == 0 ? 0 : ((<span class="org-type">int64_t</span>)(j + 9)) % 23;
-    }
-    <span class="org-keyword">return</span> b;
+<pre class="src src-C++"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
+<span class="org-preprocessor">#pragma</span> hls_design top
+<span class="org-type">uint32_t</span> <span class="org-function-name">result</span>() {
+    <span class="org-type">int32_t</span> <span class="org-variable-name">a</span> = -7;
+    <span class="org-keyword">return</span> 1 % a;
 }
 </pre>
 </div>
 
 <p>
-However, Bambu seems to return 3 instead. In addition to that, if any of the loops are removed, the result will be correct for Bambu, even though the loops shouldn&rsquo;t affect the final result.
+The above might be a compiler specific behaviour, however, when the following is
+passed to Catapult C, which just inlines the value of <code>a</code> into the operation,
+Catapult C agrees with GCC and outputs <code>1</code>.
 </p>
 
-<p>
-This was tested in the following version of Bambu:
-</p>
-
-<pre class="example">
-Version: PandA 0.9.7-dev - Revision 6f2d6eb92cb1507af12248a503ef39990d3d9c23-SROA_TCAD_release
-</pre>
-
-<section id="outline-container-orgeea2c90" class="outline-2">
-<h2 id="orgeea2c90"><span class="section-number-2">1.</span> Running the testcase</h2>
-<div class="outline-text-2" id="text-1">
-<p>
-The following script reproduces the result mentioned above.
-</p>
-
-<p>
-<code>./run.sh</code>
-</p>
 <div class="org-src-container">
-<pre class="src src-sh"><span class="org-comment-delimiter">#</span><span class="org-comment">!/bin/</span><span class="org-keyword">bash</span>
-
-bambu test.c &gt;bambu.log 2&gt;&amp;1
-iverilog top.v tb.v -o top
-./top &gt;out.iverilog.txt
-<span class="org-variable-name">result_bambu_hex</span>=$(sed -E -e <span class="org-string">'s/checksum = ([0-9a-fA-F]+)/\1/'</span> out.iverilog.txt)
-<span class="org-variable-name">result_bambu</span>=$(( 16#$<span class="org-variable-name">result_bambu_hex</span> ))
-
-gcc test.c -o test
-./test
-<span class="org-variable-name">result_gcc</span>=$<span class="org-variable-name">?</span>
-
-<span class="org-keyword">if</span> [[ <span class="org-string">"$result_bambu"</span> -eq <span class="org-string">"$result_gcc"</span> ]]; <span class="org-keyword">then</span>
-    <span class="org-builtin">echo</span> <span class="org-string">"$result_bambu = $result_gcc"</span>
-    <span class="org-keyword">exit</span> 0
-<span class="org-keyword">else</span>
-    <span class="org-builtin">echo</span> <span class="org-string">"$result_bambu != $result_gcc"</span>
-    <span class="org-keyword">exit</span> 1
-<span class="org-keyword">fi</span>
+<pre class="src src-C++"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
+<span class="org-preprocessor">#pragma</span> hls_design top
+<span class="org-type">uint32_t</span> <span class="org-function-name">result</span>() {
+    <span class="org-keyword">return</span> 1 % (-7);
+}
 </pre>
 </div>
 
 <p>
-Using the following testbench.
+When looking at the hardware, no modulo operation is actually performed, meaning
+this is just an analysis issue with Catapult C which computes the constant value
+that should be returned.  In the first case, Catapult C incorrectly generates a
+constant that is always returned which contains <code>0xffffffff</code>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-verilog">ccs_out_v1 #(.<span class="org-function-name">rscid</span>(32'sd1),
+.<span class="org-function-name">width</span>(32'sd32)) <span class="org-function-name">return_rsci</span> (
+    .<span class="org-function-name">idat</span>(32'b11111111111111111111111111111111),
+    .<span class="org-function-name">dat</span>(return_rsc_dat)
+  );
+</pre>
+</div>
+
+<p>
+Whereas in the second case it generates a constant with the right value:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-verilog">ccs_out_v1 #(.<span class="org-function-name">rscid</span>(32'sd1),
+.<span class="org-function-name">width</span>(32'sd32)) <span class="org-function-name">return_rsci</span> (
+    .<span class="org-function-name">idat</span>(32'b00000000000000000000000000000001),
+    .<span class="org-function-name">dat</span>(return_rsc_dat)
+  );
+</pre>
+</div>
+</div>
+</section>
+
+<section id="outline-container-orge6b01fb" class="outline-2">
+<h2 id="orge6b01fb"><span class="section-number-2">2.</span> Reproduction</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+The following files are necessary to reproduce the bug, using <code>GCC</code> as the
+reference compiler.
 </p>
 
 <p>
-<code>./tb.v</code>
+<code>bug.tcl</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-verilog"><span class="org-keyword">module</span> testbench;
-   <span class="org-type">reg</span> clock, reset, start_port;
-   <span class="org-type">wire</span> done_port;
-   <span class="org-type">wire</span> [31:0] return_port;
+<pre class="src src-tcl">go new
+solution <span class="org-builtin">file</span> add ./bug.cpp
+go analyze
+go compile
+solution library add mgc_Xilinx-VIRTEX-7-2_beh -- -rtlsyntool Vivado -manufacturer Xilinx -family VIRTEX-7 -speed -2 -part xc7vx485tffg1157-2
+solution library add Xilinx_RAMS
+solution library add Xilinx_ROMS
+solution library add Xilinx_FIFO
+go libraries
+directive <span class="org-builtin">set</span> -CLOCKS {clk {-CLOCK_PERIOD 10 -CLOCK_EDGE rising -CLOCK_HIGH_TIME 5 -CLOCK_OFFSET 0.000000 -CLOCK_UNCERTAINTY 0.0 -RESET_KIND sync -RESET_SYNC_NAME rst -RESET_SYNC_ACTIVE high -RESET_ASYNC_NAME arst_n -RESET_ASYNC_ACTIVE low -ENABLE_NAME {} -ENABLE_ACTIVE high}}
+directive <span class="org-builtin">set</span> -SCHED_USE_MULTICYCLE true
+go assembly
+go allocate
+go extract
+</pre>
+</div>
 
-   main <span class="org-function-name">m</span>(.<span class="org-function-name">clock</span>(clock), .<span class="org-function-name">reset</span>(reset), .<span class="org-function-name">start_port</span>(start_port), .<span class="org-function-name">done_port</span>(done_port), .<span class="org-function-name">return_port</span>(return_port));
+<p>
+<code>main.cpp</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-C++"><span class="org-preprocessor">#include</span> <span class="org-string">"bug.cpp"</span>
+<span class="org-preprocessor">#include</span> <span class="org-string">&lt;cstdio&gt;</span>
 
-   <span class="org-keyword">always</span><span class="org-type"> #10</span> clock = ~clock;
+<span class="org-type">int</span> <span class="org-function-name">main</span>() {
+    <span class="org-type">uint32_t</span> <span class="org-variable-name">crc</span> = result();
+    printf (<span class="org-string">"checksum = %08x\n"</span>, crc);
+}
+</pre>
+</div>
 
-   <span class="org-keyword">initial</span> <span class="org-type">begin</span>
-      clock = 0;
-      reset = 0;
-      start_port = 0;
-      <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock) reset = 0;
-      <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock) reset = 1; start_port = 1;
-      <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock) start_port = 0;
-   <span class="org-type">end</span>
+<p>
+<code>run_bug.sh</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-sh">gcc main.cpp -o test_gcc &amp;&amp; ./test_gcc &gt;out.gold.txt
 
-   <span class="org-keyword">always</span> <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clock)
-     <span class="org-keyword">if</span> (done_port) <span class="org-type">begin</span>
-        <span class="org-keyword">$display</span>(<span class="org-string">"checksum = %h"</span>, return_port);
-        <span class="org-keyword">$finish</span>;
-     <span class="org-type">end</span>
+rm -rf Catapult &gt;/dev/null 2&gt;&amp;1
+catapult -shell -file run.tcl &gt;/dev/null
+cp Catapult/result.v1/concat_sim_rtl.v result.v
+iverilog -o out.ver result.v tb.v
+./out.ver | head -n1 &gt;out.sim.txt
+
+diff out.gold.txt out.sim.txt
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sh">1c1
+&lt; checksum = 00000001
+---
+&gt; checksum = ffffffff
+</pre>
+</div>
+
+<p>
+<code>tb.v</code>
+</p>
+<div class="org-src-container">
+<pre class="src src-verilog"><span class="org-keyword">module</span> <span class="org-function-name">testbench</span>();
+  <span class="org-type">reg</span> rst, clk;
+  <span class="org-type">wire</span> [31:0] <span class="org-keyword">return</span>;
+  <span class="org-type">wire</span> rdy;
+
+  result <span class="org-function-name">result_dat</span>(clk, rst, <span class="org-keyword">return</span>, rdy);
+
+  <span class="org-keyword">initial</span> <span class="org-type">begin</span>
+    rst = 1;
+    clk = 0;
+   <span class="org-type"> #10</span>
+    rst = 0;
+  <span class="org-type">end</span>
+
+  <span class="org-keyword">always</span><span class="org-type"> #5</span> clk = ~clk;
+
+  <span class="org-keyword">always</span> <span class="org-type">@</span>(<span class="org-keyword">posedge</span> clk) <span class="org-type">begin</span>
+    <span class="org-keyword">if</span> (rdy) <span class="org-type">begin</span>
+      <span class="org-keyword">$display</span>(<span class="org-string">"checksum = %08h"</span>, <span class="org-keyword">return</span>);
+      <span class="org-keyword">$finish</span>();
+    <span class="org-type">end</span>
+  <span class="org-type">end</span>
 
 <span class="org-keyword">endmodule</span>
 </pre>
