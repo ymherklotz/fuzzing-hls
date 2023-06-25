@@ -201,8 +201,8 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#org99d90ed">1. Description of bug</a></li>
-<li><a href="#orgd6cc6a7">2. Reproduction</a></li>
+<li><a href="#orgf05bd6b">1. Description of bug</a></li>
+<li><a href="#org01ce92c">2. Reproduction</a></li>
 </ul>
 </div>
 </nav>
@@ -210,8 +210,8 @@
 The following bug was found in Catapult C 2020.
 </p>
 
-<section id="outline-container-org99d90ed" class="outline-2">
-<h2 id="org99d90ed"><span class="section-number-2">1.</span> Description of bug</h2>
+<section id="outline-container-orgf05bd6b" class="outline-2">
+<h2 id="orgf05bd6b"><span class="section-number-2">1.</span> Description of bug</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 The following code produces the wrong result when compiled with Catapult C 2020.
@@ -224,7 +224,7 @@ expected result is <code>1</code>, however, Catapult C with the following exampl
 <code>./bug.cpp</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-c++"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
+<pre class="src src-cpp"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
 <span class="org-preprocessor">#pragma</span> hls_design top
 <span class="org-type">uint32_t</span> <span class="org-function-name">result</span>() {
     <span class="org-type">int32_t</span> <span class="org-variable-name">a</span> = -7;
@@ -240,7 +240,7 @@ Catapult C agrees with GCC and outputs <code>1</code>.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-c++"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
+<pre class="src src-cpp"><span class="org-preprocessor">#include</span> <span class="org-string">&lt;stdint.h&gt;</span>
 <span class="org-preprocessor">#pragma</span> hls_design top
 <span class="org-type">uint32_t</span> <span class="org-function-name">result</span>() {
     <span class="org-keyword">return</span> 1 % (-7);
@@ -279,8 +279,8 @@ Whereas in the second case it generates a constant with the right value:
 </div>
 </section>
 
-<section id="outline-container-orgd6cc6a7" class="outline-2">
-<h2 id="orgd6cc6a7"><span class="section-number-2">2.</span> Reproduction</h2>
+<section id="outline-container-org01ce92c" class="outline-2">
+<h2 id="org01ce92c"><span class="section-number-2">2.</span> Reproduction</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 The following files are necessary to reproduce the bug, using <code>GCC</code> as the
@@ -312,7 +312,7 @@ go extract
 <code>main.cpp</code>
 </p>
 <div class="org-src-container">
-<pre class="src src-c++"><span class="org-preprocessor">#include</span> <span class="org-string">"bug.cpp"</span>
+<pre class="src src-cpp"><span class="org-preprocessor">#include</span> <span class="org-string">"bug.cpp"</span>
 <span class="org-preprocessor">#include</span> <span class="org-string">&lt;cstdio&gt;</span>
 
 <span class="org-type">int</span> <span class="org-function-name">main</span>() {
